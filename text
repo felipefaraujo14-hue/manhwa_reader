@@ -1,0 +1,28 @@
+-- SELECT: users can only read their own rows
+CREATE POLICY "user_read_own_manhwas"
+ON public.manhwas
+FOR SELECT
+TO authenticated
+USING ( (SELECT auth.uid()) = user_id );
+
+-- INSERT: users can only insert rows owned by themselves
+CREATE POLICY "user_insert_own_manhwas"
+ON public.manhwas
+FOR INSERT
+TO authenticated
+WITH CHECK ( (SELECT auth.uid()) = user_id );
+
+-- UPDATE: users can only update their own rows
+CREATE POLICY "user_update_own_manhwas"
+ON public.manhwas
+FOR UPDATE
+TO authenticated
+USING ( (SELECT auth.uid()) = user_id )
+WITH CHECK ( (SELECT auth.uid()) = user_id );
+
+-- DELETE: users can only delete their own rows
+CREATE POLICY "user_delete_own_manhwas"
+ON public.manhwas
+FOR DELETE
+TO authenticated
+USING ( (SELECT auth.uid()) = user_id );
