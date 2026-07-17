@@ -9,7 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Users, Shield, LogOut, User, Bug, Send } from "lucide-react";
+import { Users, Shield, LogOut, User, Bug, Send } from "lucide-react";
+
+// Importando o novo logo da pasta assets
+import logoImg from "@/assets/logo.png";
 
 export function Header() {
   const { user, isAdmin, profile, signOut } = useAuth();
@@ -33,11 +36,15 @@ export function Header() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between">
+        <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link to="/" className="flex items-center gap-2 font-bold text-lg">
-              <BookOpen className="h-5 w-5 text-primary" />
-              <span>ManhwaReader</span>
+            {/* Link estruturado com a classe .logo para ativar o brilho neon ao passar o mouse */}
+            <Link to="/" className="logo flex items-center h-10 transition-all duration-300">
+              <img 
+                src={logoImg} 
+                alt="ManhwaReader Logo" 
+                className="h-full w-auto object-contain"
+              />
             </Link>
             {user && (
               <nav className="hidden md:flex items-center gap-4 text-sm">

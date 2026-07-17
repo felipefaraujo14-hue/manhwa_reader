@@ -2,60 +2,106 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* 
+  Design System Refinado - ManhwaReader 
+  Foco em profundidade (tons de azul-escuro/grafite) e destaque moderno (índigo/violeta e detalhes vibrantes).
 */
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
+    /* Background & Textos - Menos purpurina, mais contraste confortável */
+    --background: 224 71% 4%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    /* Cards - Levemente mais claros que o fundo para criar relevo/profundidade */
+    --card: 224 71% 7%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 224 71% 6%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Cor Principal (Primary) - Um tom violeta/índigo moderno para os botões e destaques */
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    /* Cores Secundárias e Muted - Ótimas para tags de gênero secundárias */
+    --secondary: 217.2 32.6% 14%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 217.2 32.6% 12%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    /* Accent - Para efeitos de hover e estados ativos */
+    --accent: 263.4 70% 20%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    /* Destructive - Para erros ou badges importantes (ex: Lançamento) */
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Bordas e Inputs - Mais sutis para não poluir a tela */
+    --border: 217.2 32.6% 14%;
+    --input: 217.2 32.6% 14%;
+    --ring: 263.4 70% 50.4%;
 
-    --radius: 0.5rem;
+    /* Cantos arredondados ligeiramente mais modernos */
+    --radius: 0.75rem;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Variáveis Extras para Efeitos Avançados */
+    --glow-color: 263.4 70% 50.4%;
   }
-
 }
 
 @layer base {
   * {
     @apply border-border;
+    /* Suaviza as fontes no navegador */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Scrollbar Customizada e Elegante */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 5px;
+    border: 2px solid hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.5);
+  }
+}
+
+/* 
+  Classes Utilitárias Avançadas (Opcionais) 
+  Dicas extras para você aplicar nas suas tags do Tailwind:
+*/
+@layer utilities {
+  /* Efeito de brilho neon sutil para cards ou badges em hover */
+  .glow-hover {
+    @apply transition-all duration-300;
+  }
+  .glow-hover:hover {
+    box-shadow: 0 0 20px -5px hsl(var(--glow-color) / 0.4);
+    transform: translateY(-4px);
+  }
+
+  /* Gradiente escuro para colocar por baixo do texto em overlays de imagem */
+  .gradient-overlay {
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
   }
 }

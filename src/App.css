@@ -1,24 +1,27 @@
+/* Estrutura principal do app (Preenche a tela toda corretamente) */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* Removemos o text-align center e os paddings genéricos que quebravam o layout */
 }
 
+/* Animações e Efeitos Modernos para Logos/Ícones (Se você usar) */
 .logo {
-  height: 6em;
-  padding: 1.5em;
+  height: 3.5rem;
+  padding: 0.5rem;
   will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  transition: filter 300ms ease, transform 300ms ease;
 }
 
-@keyframes logo-spin {
+/* Usando a nossa cor principal (primary) do Tailwind para o efeito de brilho */
+.logo:hover {
+  filter: drop-shadow(0 0 1.5rem hsl(var(--primary) / 0.6));
+  transform: scale(1.05);
+}
+
+/* Efeito de rotação sutil para ícones de carregamento (loading spinners) */
+@keyframes spin-slow {
   from {
     transform: rotate(0deg);
   }
@@ -28,15 +31,22 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  .animate-spin-slow {
+    animation: spin-slow infinite 20s linear;
   }
 }
 
+/* Ajuste dos cards nativos para herdar o padrão do design system */
 .card {
-  padding: 2em;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  transition: all 0.2s ease;
 }
 
+/* Texto secundário/bula de rodapé seguindo o padrão muted */
 .read-the-docs {
-  color: #888;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
 }
