@@ -429,7 +429,7 @@ export default function Community() {
                     <p className="text-xs text-muted-foreground">posts</p>
                   </div>
                   <div className="rounded-lg bg-muted p-3">
-                    <p className="text-xl font-bold">5</p>
+                    <p className="text-xl font-bold">4</p>
                     <p className="text-xs text-muted-foreground">leitores</p>
                   </div>
                 </div>
