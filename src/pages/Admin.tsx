@@ -13,14 +13,23 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Edit, Upload, Image, Users, Bug, CheckCircle } from "lucide-react";
+import { Plus, Trash2, Edit, Upload, Image, Users, Bug, CheckCircle, Search, X } from "lucide-react";
 
 const GENRES = ["Ação", "Romance", "Fantasia", "Drama", "Comédia", "Terror", "Aventura", "Sci-Fi"];
+
+const normalizeSearchText = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 
 export default function Admin() {
   const { isAdmin } = useAuth();
 
-  if (!isAdmin) return <div className="container py-8 text-center text-destructive font-bold">Acesso negado.</div>;
+  if (!isAdmin) {
+    return <div className="container py-8 text-center text-destructive font-bold">Acesso negado.</div>;
+  }
 
   return (
     <div className="container py-6 space-y-6">
@@ -32,169 +41,69 @@ export default function Admin() {
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
-        <TabsContent value="manhwas"><ManhwaManager /></TabsContent>
-        <TabsContent value="chapters"><ChapterManager /></TabsContent>
-        <TabsContent value="users"><UsersList /></TabsContent>
-        <TabsContent value="reports"><ReportsManager /></TabsContent>
+        <TabsContent value="manhwas">
+          <ManhwaManager />
+        </TabsContent>
+        <TabsContent value="chapters">
+          <ChapterManager />
+        </TabsContent>
+        <TabsContent value="users">
+          <UsersList />
+        </TabsContent>
+        <TabsContent value="reports">
+          <ReportsManager />
+        </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function UsersList() {
-  const { data: users, isLoading } = useQuery({
-    queryKey: ["admin-users"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*, user_roles(role)").order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  return (
-    <div className="space-y-3 mt-4">
-      <h3 className="font-medium flex items-center gap-2"><Users className="h-4 w-4" /> Usuários cadastrados ({users?.length || 0})</h3>
-      {isLoading ? <p className="text-muted-foreground text-sm">Carregando...</p> : (
-        <div className="grid gap-2">
-          {users?.map((u: any) => (
-            <Card key={u.id}>
-              <CardContent className="flex items-center gap-3 p-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={u.avatar_url || undefined} />
-                  <AvatarFallback>{u.display_name?.[0]?.toUpperCase() || "U"}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{u.display_name || "Sem nome"}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString("pt-BR")}</p>
-                </div>
-                <div className="flex gap-1">
-                  {u.user_roles?.map((r: any, i: number) => (
-                    <Badge key={i} variant={r.role === "admin" ? "default" : "secondary"} className="text-xs">{r.role}</Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ReportsManager() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-
-  const { data: reports, isLoading } = useQuery({
-    queryKey: ["admin-reports"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("reports")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      // Fetch profile names for each report
-      if (data && data.length > 0) {
-        const userIds = [...new Set(data.map((r: any) => r.user_id))];
-        const { data: profiles } = await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds);
-        const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p]) || []);
-        return data.map((r: any) => ({ ...r, profile: profileMap.get(r.user_id) || null }));
-      }
-      return data;
-    },
-  });
-
-  const resolveReport = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("reports").update({ status: "resolved", resolved_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-reports"] });
-      toast({ title: "Report resolvido" });
-    },
-  });
-
-  return (
-    <div className="space-y-3 mt-4">
-      <h3 className="font-medium flex items-center gap-2"><Bug className="h-4 w-4" /> Reports ({reports?.length || 0})</h3>
-      {isLoading ? <p className="text-muted-foreground text-sm">Carregando...</p> : !reports || reports.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nenhum report recebido.</p>
-      ) : (
-        <div className="grid gap-2">
-          {reports.map((r: any) => (
-            <Card key={r.id}>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-medium text-sm">{r.subject}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      por {r.profile?.display_name || "Anônimo"} · {new Date(r.created_at).toLocaleDateString("pt-BR")}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={r.status === "pending" ? "destructive" : "secondary"}>{r.status === "pending" ? "Pendente" : "Resolvido"}</Badge>
-                    {r.status === "pending" && (
-                      <Button size="sm" variant="outline" onClick={() => resolveReport.mutate(r.id)}>
-                        <CheckCircle className="mr-1 h-3 w-3" /> Resolver
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">{r.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+/* -------------------------------------------------------------------------- */
+/*                                MANHWA MANAGER                              */
+/* -------------------------------------------------------------------------- */
 
 function ManhwaManager() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [synopsis, setSynopsis] = useState("");
-  const [author, setAuthor] = useState("");
   const [status, setStatus] = useState("ongoing");
-  const [genres, setGenres] = useState<string[]>([]);
-  const [featured, setFeatured] = useState(false);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [open, setOpen] = useState(false);
 
   const { data: manhwas } = useQuery({
     queryKey: ["admin-manhwas"],
     queryFn: async () => {
-      const { data } = await supabase.from("manhwas").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("manhwas").select("*").order("title");
+      if (error) throw error;
       return data || [];
     },
   });
 
-  const resetForm = () => {
-    setEditId(null); setTitle(""); setSynopsis(""); setAuthor(""); setStatus("ongoing"); setGenres([]); setFeatured(false); setCoverFile(null);
-  };
-
-  const openEdit = (m: any) => {
-    setEditId(m.id); setTitle(m.title); setSynopsis(m.synopsis || ""); setAuthor(m.author || "");
-    setStatus(m.status); setGenres(m.genres || []); setFeatured(m.featured || false);
-    setDialogOpen(true);
-  };
-
   const saveManhwa = useMutation({
     mutationFn: async () => {
-      let cover_url: string | undefined;
+      let cover_url = undefined;
+
       if (coverFile) {
         const ext = coverFile.name.split(".").pop();
-        const path = `${Date.now()}.${ext}`;
-        const { error } = await supabase.storage.from("covers").upload(path, coverFile);
-        if (error) throw error;
+        const path = `covers/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("covers").upload(path, coverFile);
+        if (uploadError) throw uploadError;
         cover_url = supabase.storage.from("covers").getPublicUrl(path).data.publicUrl;
       }
-      const payload = { title, synopsis, author, status, genres, featured, ...(cover_url ? { cover_url } : {}) };
-      if (editId) {
-        const { error } = await supabase.from("manhwas").update(payload).eq("id", editId);
+
+      const payload = {
+        title,
+        synopsis,
+        status,
+        genres: selectedGenres,
+        ...(cover_url && { cover_url }),
+      };
+
+      if (editingId) {
+        const { error } = await supabase.from("manhwas").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("manhwas").insert(payload);
@@ -203,11 +112,12 @@ function ManhwaManager() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-manhwas"] });
-      qc.invalidateQueries({ queryKey: ["manhwas"] });
-      resetForm(); setDialogOpen(false);
-      toast({ title: editId ? "Manhwa atualizado!" : "Manhwa adicionado!" });
+      toast({ title: editingId ? "Manhwa atualizado!" : "Manhwa criado!" });
+      resetForm();
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (err: Error) => {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    },
   });
 
   const deleteManhwa = useMutation({
@@ -217,66 +127,102 @@ function ManhwaManager() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-manhwas"] });
-      toast({ title: "Manhwa excluído" });
+      toast({ title: "Manhwa excluído!" });
     },
   });
 
-  const toggleGenre = (g: string) => setGenres((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]);
+  const resetForm = () => {
+    setEditingId(null);
+    setTitle("");
+    setSynopsis("");
+    setStatus("ongoing");
+    setSelectedGenres([]);
+    setCoverFile(null);
+    setOpen(false);
+  };
+
+  const openEdit = (m: any) => {
+    setEditingId(m.id);
+    setTitle(m.title);
+    setSynopsis(m.synopsis || "");
+    setStatus(m.status || "ongoing");
+    setSelectedGenres(m.genres || []);
+    setOpen(true);
+  };
+
+  const toggleGenre = (genre: string) => {
+    setSelectedGenres((prev) =>
+      prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
+    );
+  };
 
   return (
     <div className="space-y-4 mt-4">
-      <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-        <DialogTrigger asChild>
-          <Button><Plus className="mr-2 h-4 w-4" /> Adicionar Manhwa</Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editId ? "Editar" : "Novo"} Manhwa</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <Input placeholder="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <Textarea placeholder="Sinopse" value={synopsis} onChange={(e) => setSynopsis(e.target.value)} />
-            <Input placeholder="Autor" value={author} onChange={(e) => setAuthor(e.target.value)} />
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ongoing">Em andamento</SelectItem>
-                <SelectItem value="completed">Completo</SelectItem>
-              </SelectContent>
-            </Select>
-            <div>
-              <label className="text-sm font-medium">Gêneros</label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {GENRES.map((g) => (
-                  <Badge key={g} variant={genres.includes(g) ? "default" : "outline"} className="cursor-pointer" onClick={() => toggleGenre(g)}>
-                    {g}
-                  </Badge>
-                ))}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Gerenciar Obras</h2>
+        <Dialog open={open} onOpenChange={(val) => { if (!val) resetForm(); else setOpen(val); }}>
+          <DialogTrigger asChild>
+            <Button><Plus className="mr-2 h-4 w-4" /> Novo Manhwa</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{editingId ? "Editar Manhwa" : "Adicionar Manhwa"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <Input placeholder="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Textarea placeholder="Sinopse" value={synopsis} onChange={(e) => setSynopsis(e.target.value)} />
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ongoing">Em andamento</SelectItem>
+                  <SelectItem value="completed">Completo</SelectItem>
+                </SelectContent>
+              </Select>
+              <div>
+                <label className="text-sm font-medium">Gêneros</label>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {GENRES.map((g) => (
+                    <Badge
+                      key={g}
+                      variant={selectedGenres.includes(g) ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => toggleGenre(g)}
+                    >
+                      {g}
+                    </Badge>
+                  ))}
+                </div>
               </div>
+              <div>
+                <label className="text-sm font-medium">Capa</label>
+                <Input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} className="mt-1" />
+              </div>
+              <Button className="w-full" onClick={() => saveManhwa.mutate()} disabled={!title || saveManhwa.isPending}>
+                {saveManhwa.isPending ? "Salvando..." : "Salvar"}
+              </Button>
             </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={featured} onCheckedChange={setFeatured} />
-              <label className="text-sm">Destaque</label>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Capa</label>
-              <Input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} className="mt-1" />
-            </div>
-            <Button onClick={() => title.trim() && saveManhwa.mutate()} disabled={!title.trim()}>
-              {editId ? "Salvar" : "Adicionar"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-      <div className="grid gap-3">
-        {manhwas?.map((m: any) => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {manhwas?.map((m) => (
           <Card key={m.id}>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="h-16 w-12 rounded overflow-hidden bg-muted shrink-0">
-                {m.cover_url ? <img src={m.cover_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Image className="h-4 w-4 text-muted-foreground" /></div>}
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="w-12 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
+                {m.cover_url ? (
+                  <img src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Image className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium truncate">{m.title}</h3>
-                <p className="text-xs text-muted-foreground">{m.status === "ongoing" ? "Em andamento" : "Completo"} · {m.genres?.join(", ") || "Sem gênero"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {m.status === "ongoing" ? "Em andamento" : "Completo"} · {m.genres?.join(", ") || "Sem gênero"}
+                </p>
               </div>
               <div className="flex gap-1">
                 <Button variant="ghost" size="icon" onClick={() => openEdit(m)}><Edit className="h-4 w-4" /></Button>
@@ -290,6 +236,10 @@ function ManhwaManager() {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*                               CHAPTER MANAGER                              */
+/* -------------------------------------------------------------------------- */
+
 function ChapterManager() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -297,6 +247,8 @@ function ChapterManager() {
   const [chapterNumber, setChapterNumber] = useState("");
   const [chapterTitle, setChapterTitle] = useState("");
   const [pageFiles, setPageFiles] = useState<FileList | null>(null);
+  const [manhwaSearch, setManhwaSearch] = useState("");
+  const [chapterSearch, setChapterSearch] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const { data: manhwas } = useQuery({
@@ -311,9 +263,36 @@ function ChapterManager() {
     queryKey: ["admin-chapters", selectedManhwa],
     enabled: !!selectedManhwa,
     queryFn: async () => {
-      const { data } = await supabase.from("chapters").select("*").eq("manhwa_id", selectedManhwa).order("chapter_number");
+      const { data } = await supabase
+        .from("chapters")
+        .select("*")
+        .eq("manhwa_id", selectedManhwa)
+        .order("chapter_number");
       return data || [];
     },
+  });
+
+  const filteredManhwas = (manhwas || []).filter((m) =>
+    normalizeSearchText(m.title).includes(normalizeSearchText(manhwaSearch))
+  );
+
+  const selectedManhwaTitle = manhwas?.find((m) => m.id === selectedManhwa)?.title;
+  const normalizedChapterSearch = normalizeSearchText(chapterSearch);
+
+  const filteredChapters = (chapters || []).filter((ch) => {
+    if (!normalizedChapterSearch) return true;
+
+    const searchableText = normalizeSearchText(
+      [
+        `capitulo ${ch.chapter_number}`,
+        `cap ${ch.chapter_number}`,
+        String(ch.chapter_number),
+        ch.title || "",
+        `${ch.pages?.length || 0} paginas`,
+      ].join(" ")
+    );
+
+    return searchableText.includes(normalizedChapterSearch);
   });
 
   const uploadChapter = async () => {
@@ -326,16 +305,26 @@ function ChapterManager() {
         const ext = file.name.split(".").pop();
         const path = `${selectedManhwa}/${chapterNumber}/${String(i + 1).padStart(3, "0")}.${ext}`;
         const { error } = await supabase.storage.from("chapters").upload(path, file, { upsert: true });
-        if (error) { toast({ title: "Erro no upload", description: error.message, variant: "destructive" }); setUploading(false); return; }
+        if (error) {
+          toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+          setUploading(false);
+          return;
+        }
         pages.push(supabase.storage.from("chapters").getPublicUrl(path).data.publicUrl);
       }
       const { error } = await supabase.from("chapters").insert({
-        manhwa_id: selectedManhwa, chapter_number: parseFloat(chapterNumber), title: chapterTitle || null, pages,
+        manhwa_id: selectedManhwa,
+        chapter_number: parseFloat(chapterNumber),
+        title: chapterTitle || null,
+        pages,
       });
+
       if (error) {
         toast({ title: "Erro ao salvar capítulo", description: error.message, variant: "destructive" });
       } else {
-        setChapterNumber(""); setChapterTitle(""); setPageFiles(null);
+        setChapterNumber("");
+        setChapterTitle("");
+        setPageFiles(null);
         const fileInput = document.querySelector('input[type="file"][multiple]') as HTMLInputElement;
         if (fileInput) fileInput.value = "";
         qc.invalidateQueries({ queryKey: ["admin-chapters", selectedManhwa] });
@@ -360,12 +349,55 @@ function ChapterManager() {
 
   return (
     <div className="space-y-4 mt-4">
-      <Select value={selectedManhwa} onValueChange={setSelectedManhwa}>
-        <SelectTrigger><SelectValue placeholder="Selecione um manhwa" /></SelectTrigger>
-        <SelectContent>
-          {manhwas?.map((m) => <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>)}
-        </SelectContent>
-      </Select>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Procurar e Selecionar Manhwa</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Filtre a lista abaixo..."
+              value={manhwaSearch}
+              onChange={(e) => setManhwaSearch(e.target.value)}
+              className="pl-9 pr-9"
+            />
+            {manhwaSearch && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                onClick={() => setManhwaSearch("")}
+                aria-label="Limpar busca de manhwa"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <Select
+            value={selectedManhwa}
+            onValueChange={(value) => {
+              setSelectedManhwa(value);
+              setChapterSearch("");
+            }}
+          >
+            <SelectTrigger><SelectValue placeholder="Selecione um manhwa" /></SelectTrigger>
+            <SelectContent>
+              {filteredManhwas.length > 0 ? (
+                filteredManhwas.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
+                ))
+              ) : (
+                <div className="px-2 py-3 text-sm text-muted-foreground">Nenhum manhwa encontrado.</div>
+              )}
+            </SelectContent>
+          </Select>
+          {selectedManhwaTitle && (
+            <p className="text-xs text-muted-foreground">Selecionado: <strong>{selectedManhwaTitle}</strong></p>
+          )}
+        </CardContent>
+      </Card>
 
       {selectedManhwa && (
         <>
@@ -373,12 +405,27 @@ function ChapterManager() {
             <CardHeader><CardTitle className="text-base">Adicionar Capítulo</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <Input placeholder="Número do capítulo" type="number" value={chapterNumber} onChange={(e) => setChapterNumber(e.target.value)} />
-                <Input placeholder="Título (opcional)" value={chapterTitle} onChange={(e) => setChapterTitle(e.target.value)} />
+                <Input
+                  placeholder="Número do capítulo"
+                  type="number"
+                  value={chapterNumber}
+                  onChange={(e) => setChapterNumber(e.target.value)}
+                />
+                <Input
+                  placeholder="Título (opcional)"
+                  value={chapterTitle}
+                  onChange={(e) => setChapterTitle(e.target.value)}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">Páginas (imagens)</label>
-                <Input type="file" accept="image/*" multiple onChange={(e) => setPageFiles(e.target.files)} className="mt-1" />
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setPageFiles(e.target.files)}
+                  className="mt-1"
+                />
               </div>
               <Button onClick={uploadChapter} disabled={uploading || !chapterNumber || !pageFiles?.length}>
                 <Upload className="mr-2 h-4 w-4" /> {uploading ? "Enviando..." : "Enviar Capítulo"}
@@ -386,20 +433,122 @@ function ChapterManager() {
             </CardContent>
           </Card>
 
-          <div className="space-y-2">
-            <h3 className="font-medium">Capítulos existentes</h3>
+          <div className="space-y-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="font-medium">Capítulos existentes</h3>
+              <span className="text-xs text-muted-foreground">
+                {filteredChapters.length} de {chapters?.length || 0} capítulo(s)
+              </span>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por número, título ou quantidade de páginas..."
+                value={chapterSearch}
+                onChange={(e) => setChapterSearch(e.target.value)}
+                className="pl-9 pr-9"
+              />
+              {chapterSearch && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                  onClick={() => setChapterSearch("")}
+                  aria-label="Limpar busca de capítulos"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             {!chapters || chapters.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum capítulo.</p>
+              <p className="text-muted-foreground text-sm">Nenhum capítulo cadastrado nesta obra.</p>
+            ) : filteredChapters.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum capítulo encontrado para “{chapterSearch}”.</p>
             ) : (
-              chapters.map((ch) => (
+              filteredChapters.map((ch) => (
                 <div key={ch.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <span className="text-sm">Cap. {ch.chapter_number}{ch.title ? ` - ${ch.title}` : ""} ({ch.pages?.length || 0} páginas)</span>
-                  <Button variant="ghost" size="icon" onClick={() => deleteChapter.mutate(ch.id)}><Trash2 className="h-4 w-4" /></Button>
+                  <span className="text-sm">
+                    Cap. {ch.chapter_number}
+                    {ch.title ? ` - ${ch.title}` : ""} ({ch.pages?.length || 0} páginas)
+                  </span>
+                  <Button variant="ghost" size="icon" onClick={() => deleteChapter.mutate(ch.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))
             )}
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 USERS LIST                                 */
+/* -------------------------------------------------------------------------- */
+
+function UsersList() {
+  const { data: users, isLoading } = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("*");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground mt-4">Carregando usuários...</p>;
+
+  return (
+    <div className="space-y-3 mt-4">
+      {users?.map((u) => (
+        <div key={u.id} className="flex items-center gap-3 p-3 border rounded-lg">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={u.avatar_url || undefined} />
+            <AvatarFallback>{u.display_name?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{u.display_name || "Usuário Sem Nome"}</p>
+            <p className="text-xs text-muted-foreground">ID: {u.id}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               REPORTS MANAGER                              */
+/* -------------------------------------------------------------------------- */
+
+function ReportsManager() {
+  const { data: reports, isLoading } = useQuery({
+    queryKey: ["admin-reports"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("reports").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground mt-4">Carregando denúncias...</p>;
+
+  return (
+    <div className="space-y-3 mt-4">
+      {!reports || reports.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhum report cadastrado.</p>
+      ) : (
+        reports.map((r) => (
+          <div key={r.id} className="p-3 border rounded-lg space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">{r.reason || "Sem motivo"}</span>
+              <Badge variant="outline">{r.status || "Pendente"}</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">{r.description || "Sem descrição adicional"}</p>
+          </div>
+        ))
       )}
     </div>
   );
