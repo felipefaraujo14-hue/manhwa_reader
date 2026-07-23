@@ -121,16 +121,12 @@ export default function Index() {
         {/* Hero Section */}
         <section className="hero-shell grid gap-7 overflow-hidden rounded-[2rem] p-5 sm:p-7 md:grid-cols-[1.15fr_0.85fr] lg:p-9">
           <div className="relative z-10 flex flex-col justify-center gap-6">
-            <Badge className="premium-badge w-fit gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold">
-              <Sparkles className="h-3.5 w-3.5" /> Biblioteca premium de manhwas
-            </Badge>
             <div className="space-y-4">
               <h1 className="max-w-3xl text-balance text-4xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
-                Leia manhwas com uma vitrine digna das suas histórias favoritas.
+                Leia suas obras com uma vitrine digna das suas histórias favoritas.
               </h1>
               <p className="max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
-                Destaques, rankings, capítulos recentes e filtros rápidos em uma
-                página inicial mais limpa, intensa e fácil de explorar.
+              Suas obras favoritas, mangas, manhwas, novels e etc você encontra aqu
               </p>
             </div>
             <div className="search-panel relative max-w-2xl rounded-2xl p-1.5">
