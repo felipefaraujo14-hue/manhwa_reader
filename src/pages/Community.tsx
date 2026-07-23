@@ -244,7 +244,7 @@ export default function Community() {
               </div>
               <h1 className="mt-1 text-3xl font-bold">Comunidade</h1>
               <p className="text-muted-foreground">
-                Descubra recomendações, teorias e discussões da galera em um feed estilo Reddit.
+                Descubra recomendações, teorias e discussões da comunidade.
               </p>
             </div>
 
@@ -421,7 +421,7 @@ export default function Community() {
               </div>
               <CardContent className="space-y-4 p-4">
                 <p className="text-sm text-muted-foreground">
-                  Um espaço para recomendações, reviews, dúvidas e teorias sobre seus manhwas favoritos.
+                  Um espaço para recomendações, reviews, dúvidas e teorias sobre suas obras favoritos.
                 </p>
                 <div className="grid grid-cols-2 gap-3 text-center">
                   <div className="rounded-lg bg-muted p-3">
