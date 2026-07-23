@@ -10,10 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Edit, Upload, Image, Users, Bug, CheckCircle, Search, X } from "lucide-react";
+import { Plus, Trash2, Edit, Upload, Image, Search, X, CheckCircle } from "lucide-react";
 
 const GENRES = ["Ação", "Romance", "Fantasia", "Drama", "Comédia", "Terror", "Aventura", "Sci-Fi"];
 
@@ -59,7 +58,7 @@ export default function Admin() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                MANHWA MANAGER                              */
+/*                               MANHWA MANAGER                               */
 /* -------------------------------------------------------------------------- */
 
 function ManhwaManager() {
@@ -524,16 +523,61 @@ function UsersList() {
 /* -------------------------------------------------------------------------- */
 
 function ReportsManager() {
-  const { data: reports, isLoading } = useQuery({
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: reports, isLoading, error } = useQuery({
     queryKey: ["admin-reports"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("reports").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("reports")
+        .select("*")
+        .order("created_at", { ascending: false });
+
       if (error) throw error;
       return data || [];
     },
   });
 
-  if (isLoading) return <p className="text-sm text-muted-foreground mt-4">Carregando denúncias...</p>;
+  const resolveReport = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("reports")
+        .update({ 
+          status: "resolved", 
+          resolved_at: new Date().toISOString() 
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-reports"] });
+      toast({ title: "Report marcado como resolvido!" });
+    },
+    onError: (err: Error) => {
+      toast({ 
+        title: "Erro ao atualizar report", 
+        description: err.message, 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground mt-4">Carregando denúncias...</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 mt-4 border border-destructive/50 rounded-lg bg-destructive/10 text-destructive text-sm">
+        <strong>Erro ao carregar reports:</strong> {error.message}
+        <p className="text-xs mt-1 text-muted-foreground">
+          Certifique-se de estar logado com a conta configurada como 'admin' na tabela user_roles.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3 mt-4">
@@ -541,12 +585,29 @@ function ReportsManager() {
         <p className="text-sm text-muted-foreground">Nenhum report cadastrado.</p>
       ) : (
         reports.map((r) => (
-          <div key={r.id} className="p-3 border rounded-lg space-y-1">
+          <div key={r.id} className="p-3 border rounded-lg space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">{r.reason || "Sem motivo"}</span>
-              <Badge variant="outline">{r.status || "Pendente"}</Badge>
+              <span className="text-sm font-semibold">{r.subject || "Sem assunto"}</span>
+              <Badge variant={r.status === "resolved" ? "default" : "secondary"}>
+                {r.status === "resolved" ? "Resolvido" : "Pendente"}
+              </Badge>
             </div>
+
             <p className="text-xs text-muted-foreground">{r.description || "Sem descrição adicional"}</p>
+
+            {r.status !== "resolved" && (
+              <div className="flex justify-end pt-1">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => resolveReport.mutate(r.id)}
+                  disabled={resolveReport.isPending}
+                >
+                  <CheckCircle className="mr-1.5 h-3.5 w-3.5 text-green-500" />
+                  {resolveReport.isPending ? "Salvando..." : "Marcar como Resolvido"}
+                </Button>
+              </div>
+            )}
           </div>
         ))
       )}
