@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, ChevronsUp, Images, Send, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 const READER_WIDTHS = {
   compact: "max-w-2xl",
@@ -43,7 +44,7 @@ export default function ChapterReader() {
   const [readerWidth, setReaderWidth] = useState<ReaderWidth>("comfortable");
   const [pageGap, setPageGap] = useState<PageGap>("seamless");
 
-  // Fetch do capítulo atual com validação de ID
+  // Fetch do capítulo atual
   const { data: chapter, isLoading: isChapterLoading, isError: isChapterError, error: chapterError } = useQuery({
     queryKey: ["chapter", chapterId],
     queryFn: async () => {
@@ -71,44 +72,67 @@ export default function ChapterReader() {
     enabled: !!manhwaId,
   });
 
-  // Fetch dos comentários
+  // Fetch dos comentários (Ajustado relacionamento de profiles)
   const { data: comments, isLoading: commentsLoading } = useQuery({
     queryKey: ["chapter-comments", chapterId],
     queryFn: async () => {
       if (!chapterId) return [];
       const { data, error } = await supabase
         .from("chapter_comments")
-        .select("*, profiles!chapter_comments_user_id_fkey(display_name, avatar_url)")
+        .select(`
+          *,
+          profiles (
+            display_name,
+            avatar_url
+          )
+        `)
         .eq("chapter_id", chapterId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as ChapterComment[];
+      return data as unknown as ChapterComment[];
     },
     enabled: !!chapterId,
   });
 
+  // Mutation para adicionar comentário
   const addComment = useMutation({
     mutationFn: async () => {
-      if (!chapterId || !user) return;
+      if (!user) throw new Error("Você precisa estar logado para comentar.");
+      if (!chapterId) throw new Error("ID do capítulo inválido.");
+
       const { error } = await supabase.from("chapter_comments").insert({
         chapter_id: chapterId,
         user_id: user.id,
-        content: comment,
+        content: comment.trim(),
       });
+
       if (error) throw error;
     },
     onSuccess: () => {
       setComment("");
       qc.invalidateQueries({ queryKey: ["chapter-comments", chapterId] });
+      toast.success("Comentário publicado!");
+    },
+    onError: (error: any) => {
+      console.error("Erro ao enviar comentário:", error);
+      toast.error(error.message || "Erro ao publicar comentário.");
     },
   });
 
+  // Mutation para deletar comentário
   const deleteComment = useMutation({
     mutationFn: async (commentId: string) => {
-      await supabase.from("chapter_comments").delete().eq("id", commentId);
+      const { error } = await supabase.from("chapter_comments").delete().eq("id", commentId);
+      if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["chapter-comments", chapterId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chapter-comments", chapterId] });
+      toast.success("Comentário excluído.");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Erro ao excluir comentário.");
+    },
   });
 
   const currentIndex = chapters?.findIndex((c) => c.id === chapterId) ?? -1;
@@ -121,7 +145,6 @@ export default function ChapterReader() {
     return `${currentIndex + 1} de ${chapters.length}`;
   }, [chapters?.length, currentIndex]);
 
-  // Se estiver carregando o capítulo principal
   if (isChapterLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-2">
@@ -131,7 +154,6 @@ export default function ChapterReader() {
     );
   }
 
-  // Se deu algum erro no banco de dados ou no parâmetro da URL
   if (isChapterError || !chapter) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4 text-center">
@@ -253,7 +275,7 @@ export default function ChapterReader() {
           <h2 className="text-xl font-bold">Comentários</h2>
         </div>
 
-        {user && (
+        {user ? (
           <div className="comment-composer flex gap-2 rounded-2xl border p-2">
             <Textarea
               placeholder="Deixe um comentário..."
@@ -270,6 +292,10 @@ export default function ChapterReader() {
               <Send className="h-4 w-4" />
             </Button>
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
+            Faça login para deixar um comentário neste capítulo.
+          </p>
         )}
 
         {commentsLoading ? (
@@ -301,7 +327,7 @@ export default function ChapterReader() {
                           onClick={() => deleteComment.mutate(c.id)}
                           aria-label="Excluir comentário"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       )}
                     </div>
