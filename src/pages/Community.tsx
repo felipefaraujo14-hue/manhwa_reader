@@ -97,26 +97,29 @@ export default function Community() {
   /* ==========================
      BUSCAR RESPOSTAS
      ========================== */
-  const { data: replies } = useQuery({
-    queryKey: ["community-replies", selectedPost],
-    enabled: !!selectedPost,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("community_replies")
-        .select(`
-          *,
-          profiles!community_posts_user_id_fkey(
-            display_name,
-            avatar_url
-          )
-        `)
-        .eq("post_id", selectedPost)
-        .order("created_at", { ascending: true });
+  /* ==========================
+   BUSCAR RESPOSTAS
+   ========================== */
+const { data: replies } = useQuery({
+  queryKey: ["community-replies", selectedPost],
+  enabled: !!selectedPost,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("community_replies")
+      .select(`
+        *,
+        profiles (
+          display_name,
+          avatar_url
+        )
+      `)
+      .eq("post_id", selectedPost)
+      .order("created_at", { ascending: true });
 
-      if (error) throw error;
-      return data;
-    },
-  });
+    if (error) throw error;
+    return data;
+  },
+});
 
   const filteredPosts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
