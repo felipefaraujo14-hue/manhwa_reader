@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -5,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Heart, BookOpen } from "lucide-react";
+import { Heart, BookOpen, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ManhwaDetail() {
@@ -13,6 +14,26 @@ export default function ManhwaDetail() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [readChapters, setReadChapters] = useState<string[]>([]);
+
+  // Escuta atualizações dos capítulos lidos no localStorage
+  useEffect(() => {
+    const loadReadChapters = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem("read_chapters") || "[]");
+        setReadChapters(saved);
+      } catch (e) {
+        console.error("Erro ao carregar histórico de leitura", e);
+      }
+    };
+
+    loadReadChapters();
+    window.addEventListener("read_chapters_updated", loadReadChapters);
+
+    return () => {
+      window.removeEventListener("read_chapters_updated", loadReadChapters);
+    };
+  }, []);
 
   const { data: manhwa, isLoading } = useQuery({
     queryKey: ["manhwa", id],
@@ -95,16 +116,34 @@ export default function ManhwaDetail() {
               <p className="text-muted-foreground">Nenhum capítulo disponível.</p>
             ) : (
               <div className="space-y-1">
-                {chapters.map((ch) => (
-                  <Link
-                    key={ch.id}
-                    to={`/manhwa/${id}/chapter/${ch.id}`}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors border"
-                  >
-                    <span className="font-medium">Cap. {ch.chapter_number}{ch.title ? ` - ${ch.title}` : ""}</span>
-                    <span className="text-xs text-muted-foreground">{new Date(ch.created_at).toLocaleDateString("pt-BR")}</span>
-                  </Link>
-                ))}
+                {chapters.map((ch) => {
+                  const isRead = readChapters.includes(ch.id);
+
+                  return (
+                    <Link
+                      key={ch.id}
+                      to={`/manhwa/${id}/chapter/${ch.id}`}
+                      className={`flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors border ${
+                        isRead ? "opacity-75 bg-muted/40" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          Cap. {ch.chapter_number}
+                          {ch.title ? ` - ${ch.title}` : ""}
+                        </span>
+                        {isRead && (
+                          <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-400 gap-1 text-[10px] py-0.5 px-1.5 font-medium">
+                            <CheckCircle2 className="h-3 w-3" /> Lido
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(ch.created_at).toLocaleDateString("pt-BR")}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
