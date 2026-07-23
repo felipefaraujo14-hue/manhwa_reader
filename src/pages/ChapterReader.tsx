@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, ChevronsUp, Images, Send, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsUp, Images, Send, Trash2, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 const READER_WIDTHS = {
@@ -43,6 +43,24 @@ export default function ChapterReader() {
   const [comment, setComment] = useState("");
   const [readerWidth, setReaderWidth] = useState<ReaderWidth>("comfortable");
   const [pageGap, setPageGap] = useState<PageGap>("seamless");
+  const [isRead, setIsRead] = useState(false);
+
+  // Marca o capítulo como lido e notifica a aplicação
+  useEffect(() => {
+    if (!chapterId) return;
+
+    try {
+      const readChapters: string[] = JSON.parse(localStorage.getItem("read_chapters") || "[]");
+      if (!readChapters.includes(chapterId)) {
+        readChapters.push(chapterId);
+        localStorage.setItem("read_chapters", JSON.stringify(readChapters));
+        window.dispatchEvent(new Event("read_chapters_updated"));
+      }
+      setIsRead(true);
+    } catch (e) {
+      console.error("Erro ao salvar histórico no localStorage", e);
+    }
+  }, [chapterId]);
 
   // Fetch do capítulo atual
   const { data: chapter, isLoading: isChapterLoading, isError: isChapterError, error: chapterError } = useQuery({
@@ -72,7 +90,7 @@ export default function ChapterReader() {
     enabled: !!manhwaId,
   });
 
-  // Fetch dos comentários (Ajustado relacionamento de profiles)
+  // Fetch dos comentários
   const { data: comments, isLoading: commentsLoading } = useQuery({
     queryKey: ["chapter-comments", chapterId],
     queryFn: async () => {
@@ -184,9 +202,14 @@ export default function ChapterReader() {
                 <ChevronLeft className="mr-1 h-4 w-4" /> Voltar à obra
               </Link>
             </Button>
-            <Badge variant="secondary" className="lg:hidden">
-              {progressLabel}
-            </Badge>
+            <div className="flex items-center gap-2 lg:hidden">
+              {isRead && (
+                <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-400 gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Lido
+                </Badge>
+              )}
+              <Badge variant="secondary">{progressLabel}</Badge>
+            </div>
           </div>
 
           <div className="min-w-0 text-center lg:flex-1">
@@ -198,6 +221,11 @@ export default function ChapterReader() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
+            {isRead && (
+              <Badge variant="outline" className="hidden lg:inline-flex border-emerald-500/50 bg-emerald-500/10 text-emerald-400 gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Lido
+              </Badge>
+            )}
             <Badge variant="secondary" className="hidden lg:inline-flex">
               {progressLabel}
             </Badge>
